@@ -34,7 +34,7 @@ class MainPageView extends StatelessWidget {
         rangeSliderLabelBuilder: (double startValue, double endValue) {
           return Container(
             child:Text(
-              _viewModel.rangeTitle,
+              _viewModel.getRangeTitle(startValue, endValue),
               style: TextStyle(
                   fontSize: 18,
                   color: Colors.black
