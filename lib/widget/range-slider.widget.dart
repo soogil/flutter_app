@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_app/paint/bar-line.dart';
+import 'package:flutter_app/paint/slider-round-overlay.dart';
+import 'package:flutter_app/paint/slider-thumb.dart';
+import 'package:flutter_app/paint/slider-track.dart';
 
 
 typedef Widget RangeSliderLabelBuilder(
@@ -93,9 +97,7 @@ class _RangeSliderWidgetState extends State<RangeSliderWidget> {
     if(hasValues) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _setPadding();
-        setState(() {
-
-        });
+        setState(() {});
       });
     }
     super.initState();
@@ -140,7 +142,7 @@ class _RangeSliderWidgetState extends State<RangeSliderWidget> {
                             overlayRadius: widget.enabledThumbRadius,
                             handlerScaleFactor: handlerScaleFactor
                         ),
-                        overlayShape: CustomRoundSliderOverlayShape(
+                        overlayShape: SliderRoundOverlayShape(
                             overlayRadius: widget.enabledThumbRadius * 2 + widget.thumbStrokeWidth,
                             handlerScaleFactor: handlerScaleFactor
                         ),
@@ -190,7 +192,7 @@ class _RangeSliderWidgetState extends State<RangeSliderWidget> {
               color: widget.chartBackgroundColor,
               child: CustomPaint(
                 size: Size(size.width, widget.chartHeight),
-                painter: BarLineChartView(
+                painter: BarLinePainter(
                   volumes: widget.volumes,
                   limitPriceVolume: _maxVolume,
                   chartColor: widget.chartColor,
@@ -222,241 +224,3 @@ class _RangeSliderWidgetState extends State<RangeSliderWidget> {
   bool get hasValues => widget.values != null;
 }
 
-class BarLineChartView extends CustomPainter {
-
-  BarLineChartView({
-    this.volumes,
-    this.limitPriceVolume,
-    this.leftPadding = 0.0,
-    this.chartColor,
-    this.hiddenXLeftovers = true,
-  }) : assert(volumes != null && volumes.length != 0);
-
-  final List<int> volumes;
-  final Color chartColor;
-  final int limitPriceVolume;
-  final double leftPadding;
-  final bool hiddenXLeftovers;
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) {
-    return false;
-  }
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    List<Offset> offsets = _calcOffsets(size);
-
-    Paint paint = Paint()
-      ..color = chartColor;
-
-    _drawLine(canvas, size, offsets, paint);
-  }
-
-  _calcOffsets(Size size) {
-    List<Offset> offsets = [];
-    double dx, dy;
-    int i;
-
-    final int leftOverByLength = hiddenXLeftovers ? volumes.length > 1
-        ? -1
-        : 0 : 1;
-    final double unit = ((size.width) / (volumes.length + leftOverByLength));
-    final double leftOverBySize = hiddenXLeftovers ? 0.0 : unit;
-
-    for (i = 0; i < volumes.length; i ++) {
-      final heightScaleFactor = volumes[i] / (limitPriceVolume + limitPriceVolume * 0.1);
-      dx = leftOverBySize + ((i * unit));
-      dy = size.height - heightScaleFactor * size.height;
-
-      offsets.add(Offset(leftPadding + dx, dy));
-    }
-
-    return offsets;
-  }
-
-  _drawLine(Canvas canvas, Size size, List<Offset> offsets, Paint paint) {
-    Path path = Path();
-
-    path.moveTo(offsets[0].dx, offsets[0].dy);
-
-    var temp = const Offset(0.0, 0.0);
-
-    for (int i = 1; i < offsets.length; i++) {
-      final previous = offsets[i - 1];
-      final current = offsets[i];
-      final next = offsets[i + 1 < offsets.length ? i + 1 : i];
-
-      final Offset cp1 = previous + temp;
-
-      temp = ((next - previous) / 2) * 0.25;
-
-      final Offset cp2 = current - temp;
-
-      path.cubicTo(
-        cp1.dx, cp1.dy > size.height ? size.height : cp1.dy,
-        cp2.dx, cp2.dy > size.height ? size.height : cp2.dy,
-        current.dx, current.dy > size.height ? size.height : current.dy,
-      );
-    }
-    path.lineTo(size.width, size.height);
-    path.lineTo(0, size.height);
-    canvas.drawPath(path, paint);
-  }
-}
-
-class SliderThumb extends RangeSliderThumbShape {
-
-  const SliderThumb({
-    this.enabledThumbRadius = 10.0,
-    this.disabledThumbRadius,
-    this.outerThumbColor = Colors.white,
-    this.thumbColor = Colors.red,
-    this.thumbStrokeWidth = 6.0,
-  }) : assert(enabledThumbRadius != null);
-
-  final double enabledThumbRadius;
-  final double disabledThumbRadius;
-  final Color outerThumbColor;
-  final Color thumbColor;
-  final double thumbStrokeWidth;
-
-  @override
-  Size getPreferredSize(bool isEnabled, bool isDiscrete) {
-    return Size.fromRadius(isEnabled == true ? enabledThumbRadius : _disabledThumbRadius);
-  }
-
-  double get _disabledThumbRadius =>  disabledThumbRadius ?? enabledThumbRadius;
-
-  @override
-  void paint(PaintingContext context,
-      Offset center,
-      {Animation<double> activationAnimation,
-        Animation<double> enableAnimation,
-        bool isDiscrete, bool isEnabled,
-        bool isOnTop,
-        TextDirection textDirection,
-        SliderThemeData sliderTheme,
-        Thumb thumb,
-        bool isPressed
-      }) {
-    assert(context != null);
-    assert(center != null);
-    assert(activationAnimation != null);
-    assert(sliderTheme != null);
-    assert(sliderTheme.showValueIndicator != null);
-    assert(sliderTheme.overlappingShapeStrokeColor != null);
-    assert(enableAnimation != null);
-
-    final Canvas canvas = context.canvas;
-    final Tween<double> radiusTween = Tween<double>(
-      begin: _disabledThumbRadius,
-      end: enabledThumbRadius,
-    );
-    final double radius = radiusTween.evaluate(enableAnimation);
-
-    canvas.drawCircle(
-      center,
-      radius,
-      Paint()
-        ..color = outerThumbColor,
-    );
-    canvas.drawCircle(
-      center,
-      radius,
-      Paint()
-        ..color = thumbColor
-        ..strokeWidth = thumbStrokeWidth
-        ..style = PaintingStyle.stroke,
-    );
-  }
-}
-
-class CustomRangeSliderTrackShape extends RoundedRectRangeSliderTrackShape{
-
-  CustomRangeSliderTrackShape({
-    this.overlayRadius,
-    this.handlerScaleFactor = 1.5
-  });
-
-  final double overlayRadius;
-  final double handlerScaleFactor;
-
-  @override
-  Rect getPreferredRect({
-    @required RenderBox parentBox,
-    Offset offset = Offset.zero,
-    @required SliderThemeData sliderTheme,
-    bool isEnabled = false,
-    bool isDiscrete = false,
-  }) {
-    assert(parentBox != null);
-    assert(offset != null);
-    assert(sliderTheme != null);
-    assert(sliderTheme.overlayShape != null);
-    assert(isEnabled != null);
-    assert(isDiscrete != null);
-    final double overlayWidth = sliderTheme.overlayShape.getPreferredSize(isEnabled, isDiscrete).width / handlerScaleFactor;
-    final double trackHeight = sliderTheme.trackHeight;
-    assert(overlayWidth >= 0);
-    assert(trackHeight >= 0);
-    assert(parentBox.size.width >= overlayWidth);
-    assert(parentBox.size.height >= trackHeight);
-
-    final double trackLeft = offset.dx + overlayWidth / 2;
-    final double trackTop = offset.dy + (parentBox.size.height - trackHeight) / 2;
-    final double trackWidth = parentBox.size.width - overlayWidth;
-    return Rect.fromLTWH(trackLeft, trackTop, trackWidth, trackHeight);
-  }
-}
-
-class CustomRoundSliderOverlayShape extends SliderComponentShape {
-  const CustomRoundSliderOverlayShape({
-    this.overlayRadius = 24.0,
-    this.handlerScaleFactor = 1.5
-  });
-
-  final double overlayRadius;
-  final double handlerScaleFactor;
-
-  @override
-  Size getPreferredSize(bool isEnabled, bool isDiscrete) {
-    return Size(overlayRadius * handlerScaleFactor, overlayRadius * handlerScaleFactor);
-  }
-
-  @override
-  void paint(PaintingContext context,
-      Offset center,
-      {Animation<double> activationAnimation,
-        Animation<double> enableAnimation,
-        bool isDiscrete, TextPainter labelPainter,
-        RenderBox parentBox,
-        SliderThemeData sliderTheme,
-        TextDirection textDirection,
-        double value,
-        double textScaleFactor,
-        Size sizeWithOverflow
-      }) {
-    assert(context != null);
-    assert(center != null);
-    assert(activationAnimation != null);
-    assert(enableAnimation != null);
-    assert(labelPainter != null);
-    assert(parentBox != null);
-    assert(sliderTheme != null);
-    assert(textDirection != null);
-    assert(value != null);
-
-    final Canvas canvas = context.canvas;
-    final Tween<double> radiusTween = Tween<double>(
-      begin: 0.0,
-      end: overlayRadius,
-    );
-
-    canvas.drawCircle(
-      center,
-      radiusTween.evaluate(activationAnimation),
-      Paint()..color = sliderTheme.overlayColor,
-    );
-  }
-}
